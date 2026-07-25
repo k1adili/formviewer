@@ -142,14 +142,14 @@ class MainActivity : AppCompatActivity() {
 
     if (autoRefresh || url != lastLoadedUrl) {
         val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
-        val finalUrl = if (rtl) {
-            if (url.contains("?")) "$url&hl=fa" else "$url?hl=fa"
+        if (rtl) {
+            val headers = mapOf("Accept-Language" to "fa-IR,fa;q=0.9")
+            webView.loadUrl(url, headers)
         } else {
-            url
+            webView.loadUrl(url)
         }
-        webView.loadUrl(finalUrl)
         lastLoadedUrl = url
-        }
+    }
     }
 
     private fun showEmptyState(message: String) {
