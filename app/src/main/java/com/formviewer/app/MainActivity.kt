@@ -125,24 +125,30 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun loadFormIfNeeded() {
-        val url = prefs.getString(Constants.KEY_FORM_URL, null)
-        val autoRefresh = prefs.getBoolean(Constants.KEY_AUTO_REFRESH, false)
+    val url = prefs.getString(Constants.KEY_FORM_URL, null)
+    val autoRefresh = prefs.getBoolean(Constants.KEY_AUTO_REFRESH, false)
 
-        if (url.isNullOrBlank()) {
-            showEmptyState(getString(R.string.no_url_set))
-            return
+    if (url.isNullOrBlank()) {
+        showEmptyState(getString(R.string.no_url_set))
+        return
+    }
+
+    if (!isNetworkAvailable()) {
+        showEmptyState(getString(R.string.no_internet))
+        return
+    }
+
+    hideEmptyState()
+
+    if (autoRefresh || url != lastLoadedUrl) {
+        val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
+        val finalUrl = if (rtl) {
+            if (url.contains("?")) "$url&hl=fa" else "$url?hl=fa"
+        } else {
+            url
         }
-
-        if (!isNetworkAvailable()) {
-            showEmptyState(getString(R.string.no_internet))
-            return
-        }
-
-        hideEmptyState()
-
-        if (autoRefresh || url != lastLoadedUrl) {
-            webView.loadUrl(url)
-            lastLoadedUrl = url
+        webView.loadUrl(finalUrl)
+        lastLoadedUrl = url
         }
     }
 
