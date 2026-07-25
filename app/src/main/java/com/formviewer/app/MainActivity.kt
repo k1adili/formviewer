@@ -83,6 +83,20 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
                 swipeRefresh.isRefreshing = false
+                
+                val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
+                if (rtl) {
+                    webView.evaluateJavascript(
+                        """
+                        (function() {
+                            var style = document.createElement('style');
+                            style.innerHTML = 'body, div, input, textarea, span { direction: rtl !important; text-align: right !important; }';
+                            document.head.appendChild(style);
+                            document.documentElement.setAttribute('dir', 'rtl');
+                        })();
+                        """.trimIndent(), null
+                    )
+                }
             }
 
             override fun onReceivedError(
