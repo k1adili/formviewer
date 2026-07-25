@@ -1,0 +1,20 @@
+<resources>
+    <string name="app_name">نمایشگر فرم</string>
+    <string name="settings_title">تنظیمات</string>
+    <string name="no_url_set">آدرس فرم گوگل تنظیم نشده است. برای تنظیم اینجا ضربه بزنید.</string>
+    <string name="no_internet">اتصال اینترنت برقرار نیست</string>
+    <string name="load_error">بارگذاری فرم با خطا مواجه شد</string>
+    <string name="form_url_hint">آدرس فرم گوگل (Google Form URL)</string>
+    <string name="auto_refresh_label">هر بار باز کردن اپ، فرم دوباره بارگذاری شود</string>
+    <string name="theme_label">حالت نمایش</string>
+    <string name="theme_system">پیش‌فرض سیستم</string>
+    <string name="theme_light">روشن</string>
+    <string name="theme_dark">تیره</string>
+    <string name="save">ذخیره</string>
+    <string name="clear_cache">پاک‌کردن حافظه موقت</string>
+    <string name="cache_cleared">حافظه موقت پاک شد</string>
+    <string name="enter_valid_url">لطفاً یک آدرس معتبر وارد کنید</string>
+    <string name="saved">تنظیمات ذخیره شد</string>
+    <string name="action_refresh">بارگذاری مجدد</string>
+    <string name="action_open_browser">باز کردن در مرورگر</string>
+</resources>
