@@ -21,6 +21,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import android.webkit.CookieManager
 
 class MainActivity : AppCompatActivity() {
 
@@ -64,6 +65,8 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("SetJavaScriptEnabled")
     private fun setupWebView() {
+        CookieManager.getInstance().setAcceptCookie(true)
+        CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.loadWithOverviewMode = true
@@ -100,6 +103,11 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         loadFormIfNeeded()
+    }
+
+    override fun onPause() {
+    super.onPause()
+    CookieManager.getInstance().flush()
     }
 
     private fun loadFormIfNeeded() {
