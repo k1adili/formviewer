@@ -17,4 +17,5 @@
     <string name="saved">تنظیمات ذخیره شد</string>
     <string name="action_refresh">بارگذاری مجدد</string>
     <string name="action_open_browser">باز کردن در مرورگر</string>
+    <string name="rtl_label">فرم فارسی است (نمایش راست‌چین)</string>
 </resources>
