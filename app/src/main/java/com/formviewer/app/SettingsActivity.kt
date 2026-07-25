@@ -20,6 +20,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
     private lateinit var urlInput: TextInputEditText
     private lateinit var autoRefreshCheck: CheckBox
+    private lateinit var checkRtl: CheckBox
     private lateinit var themeSpinner: Spinner
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,6 +35,7 @@ class SettingsActivity : AppCompatActivity() {
 
         urlInput = findViewById(R.id.editFormUrl)
         autoRefreshCheck = findViewById(R.id.checkAutoRefresh)
+        checkRtl = findViewById(R.id.checkRtl)
         themeSpinner = findViewById(R.id.spinnerTheme)
 
         val themeOptions = arrayOf(
@@ -45,6 +47,7 @@ class SettingsActivity : AppCompatActivity() {
 
         urlInput.setText(prefs.getString(Constants.KEY_FORM_URL, ""))
         autoRefreshCheck.isChecked = prefs.getBoolean(Constants.KEY_AUTO_REFRESH, false)
+        checkRtl.isChecked = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
 
         val savedTheme = prefs.getString(Constants.KEY_THEME_MODE, "system")
         themeSpinner.setSelection(
@@ -76,6 +79,7 @@ class SettingsActivity : AppCompatActivity() {
         prefs.edit()
             .putString(Constants.KEY_FORM_URL, url)
             .putBoolean(Constants.KEY_AUTO_REFRESH, autoRefreshCheck.isChecked)
+            .putBoolean(Constants.KEY_RTL_MODE, checkRtl.isChecked)
             .putString(Constants.KEY_THEME_MODE, themeValue)
             .apply()
 
