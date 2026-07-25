@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
 import android.view.View
+import android.webkit.CookieManager
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebSettings
@@ -21,7 +22,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-import android.webkit.CookieManager
 
 class MainActivity : AppCompatActivity() {
 
@@ -51,7 +51,12 @@ class MainActivity : AppCompatActivity() {
 
         swipeRefresh.setOnRefreshListener {
             if (isNetworkAvailable()) {
-                webView.reload()
+                val currentUrl = prefs.getString(Constants.KEY_FORM_URL, null)
+                if (!currentUrl.isNullOrBlank()) {
+                    loadWithLanguageHeader(currentUrl)
+                } else {
+                    swipeRefresh.isRefreshing = false
+                }
             } else {
                 swipeRefresh.isRefreshing = false
                 Toast.makeText(this, getString(R.string.no_internet), Toast.LENGTH_SHORT).show()
@@ -67,7 +72,9 @@ class MainActivity : AppCompatActivity() {
     private fun setupWebView() {
         CookieManager.getInstance().setAcceptCookie(true)
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
-        webView.settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+
+        webView.settings.userAgentString =
+            "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
         webView.settings.javaScriptEnabled = true
         webView.settings.domStorageEnabled = true
         webView.settings.loadWithOverviewMode = true
@@ -84,20 +91,6 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
                 swipeRefresh.isRefreshing = false
-                
-                val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
-                if (rtl) {
-                    webView.evaluateJavascript(
-                        """
-                        (function() {
-                            var style = document.createElement('style');
-                            style.innerHTML = 'body, div, input, textarea, span { direction: rtl !important; text-align: right !important; }';
-                            document.head.appendChild(style);
-                            document.documentElement.setAttribute('dir', 'rtl');
-                        })();
-                        """.trimIndent(), null
-                    )
-                }
             }
 
             override fun onReceivedError(
@@ -121,27 +114,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onPause() {
-    super.onPause()
-    CookieManager.getInstance().flush()
+        super.onPause()
+        CookieManager.getInstance().flush()
     }
 
     private fun loadFormIfNeeded() {
-    val url = prefs.getString(Constants.KEY_FORM_URL, null)
-    val autoRefresh = prefs.getBoolean(Constants.KEY_AUTO_REFRESH, false)
+        val url = prefs.getString(Constants.KEY_FORM_URL, null)
+        val autoRefresh = prefs.getBoolean(Constants.KEY_AUTO_REFRESH, false)
 
-    if (url.isNullOrBlank()) {
-        showEmptyState(getString(R.string.no_url_set))
-        return
+        if (url.isNullOrBlank()) {
+            showEmptyState(getString(R.string.no_url_set))
+            return
+        }
+
+        if (!isNetworkAvailable()) {
+            showEmptyState(getString(R.string.no_internet))
+            return
+        }
+
+        hideEmptyState()
+
+        if (autoRefresh || url != lastLoadedUrl) {
+            loadWithLanguageHeader(url)
+            lastLoadedUrl = url
+        }
     }
 
-    if (!isNetworkAvailable()) {
-        showEmptyState(getString(R.string.no_internet))
-        return
-    }
-
-    hideEmptyState()
-
-    if (autoRefresh || url != lastLoadedUrl) {
+    private fun loadWithLanguageHeader(url: String) {
         val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
         if (rtl) {
             val headers = mapOf("Accept-Language" to "fa-IR,fa;q=0.9")
@@ -149,8 +148,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             webView.loadUrl(url)
         }
-        lastLoadedUrl = url
-    }
     }
 
     private fun showEmptyState(message: String) {
@@ -179,7 +176,14 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_refresh -> {
-                if (isNetworkAvailable()) webView.reload() else loadFormIfNeeded()
+                if (isNetworkAvailable()) {
+                    val currentUrl = prefs.getString(Constants.KEY_FORM_URL, null)
+                    if (!currentUrl.isNullOrBlank()) {
+                        loadWithLanguageHeader(currentUrl)
+                    }
+                } else {
+                    loadFormIfNeeded()
+                }
                 true
             }
             R.id.action_open_browser -> {
