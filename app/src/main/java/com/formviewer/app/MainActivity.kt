@@ -36,10 +36,7 @@ class MainActivity : AppCompatActivity() {
 
     private var lastLoadedUrl: String? = null
 
-    // ---- Force the whole app's locale to Persian BEFORE the Activity/WebView is created ----
-    // This makes the WebView send "fa" as its default Accept-Language on every single
-    // network request it makes internally (including the Google login redirects),
-    // instead of us trying to inject a header manually on just the first load.
+    // Force the app's locale to Persian so our own UI (toolbar, menus) is RTL.
     override fun attachBaseContext(newBase: Context) {
         val prefs = newBase.getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
         val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
@@ -99,9 +96,6 @@ class MainActivity : AppCompatActivity() {
         webView.settings.useWideViewPort = true
         webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
 
-        // NOTE: no custom shouldOverrideUrlLoading / manual reload-with-headers here anymore.
-        // Manually re-loading the URL mid-navigation was interfering with the Google login flow.
-        // Language is now handled once, globally, via attachBaseContext() above.
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
@@ -112,6 +106,20 @@ class MainActivity : AppCompatActivity() {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
                 swipeRefresh.isRefreshing = false
+
+                // Root cause of the "goes LTR after Google login" bug:
+                // Once the login/redirect chain finishes and lands back on the form,
+                // Google sometimes drops the "hl=fa" query parameter from the URL.
+                // We check the URL the page actually finished on; if it's a form page
+                // and is missing hl=fa, we correct it ONCE. Checking for "hl=" first
+                // prevents this from looping.
+                val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
+                if (rtl && url != null && !url.contains("hl=") &&
+                    (url.contains("docs.google.com/forms") || url.contains("forms.gle"))
+                ) {
+                    val fixedUrl = if (url.contains("?")) "$url&hl=fa" else "$url?hl=fa"
+                    webView.loadUrl(fixedUrl)
+                }
             }
 
             override fun onReceivedError(
@@ -131,9 +139,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        // If the RTL setting was changed in the Settings screen while this Activity
-        // was already alive, attachBaseContext() won't re-run on its own.
-        // Detect the mismatch and recreate the Activity once so the new locale applies.
         if (localeNeedsRecreate()) {
             recreate()
             return
