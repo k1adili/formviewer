@@ -86,13 +86,25 @@ class MainActivity : AppCompatActivity() {
                 super.onPageStarted(view, url, favicon)
                 progressBar.visibility = View.VISIBLE
             }
-
+        
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val newUrl = request?.url?.toString() ?: return false
+                val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
+        
+                if (rtl && (newUrl.contains("docs.google.com/forms") || newUrl.contains("forms.gle"))) {
+                    val headers = mapOf("Accept-Language" to "fa-IR,fa;q=0.9")
+                    webView.loadUrl(newUrl, headers)
+                    return true
+                }
+                return false
+            }
+        
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
                 swipeRefresh.isRefreshing = false
             }
-
+        
             override fun onReceivedError(
                 view: WebView?,
                 request: WebResourceRequest?,
