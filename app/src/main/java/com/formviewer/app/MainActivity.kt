@@ -1,8 +1,10 @@
 package com.formviewer.app
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -22,6 +24,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import java.util.Locale
 
 class MainActivity : AppCompatActivity() {
 
@@ -32,6 +35,26 @@ class MainActivity : AppCompatActivity() {
     private lateinit var prefs: SharedPreferences
 
     private var lastLoadedUrl: String? = null
+
+    // ---- Force the whole app's locale to Persian BEFORE the Activity/WebView is created ----
+    // This makes the WebView send "fa" as its default Accept-Language on every single
+    // network request it makes internally (including the Google login redirects),
+    // instead of us trying to inject a header manually on just the first load.
+    override fun attachBaseContext(newBase: Context) {
+        val prefs = newBase.getSharedPreferences(Constants.PREFS_NAME, MODE_PRIVATE)
+        val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
+
+        if (rtl) {
+            val locale = Locale("fa", "IR")
+            Locale.setDefault(locale)
+            val config = Configuration(newBase.resources.configuration)
+            config.setLocale(locale)
+            val context = newBase.createConfigurationContext(config)
+            super.attachBaseContext(context)
+        } else {
+            super.attachBaseContext(newBase)
+        }
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -51,12 +74,7 @@ class MainActivity : AppCompatActivity() {
 
         swipeRefresh.setOnRefreshListener {
             if (isNetworkAvailable()) {
-                val currentUrl = prefs.getString(Constants.KEY_FORM_URL, null)
-                if (!currentUrl.isNullOrBlank()) {
-                    loadWithLanguageHeader(currentUrl)
-                } else {
-                    swipeRefresh.isRefreshing = false
-                }
+                webView.reload()
             } else {
                 swipeRefresh.isRefreshing = false
                 Toast.makeText(this, getString(R.string.no_internet), Toast.LENGTH_SHORT).show()
@@ -81,30 +99,21 @@ class MainActivity : AppCompatActivity() {
         webView.settings.useWideViewPort = true
         webView.settings.cacheMode = WebSettings.LOAD_DEFAULT
 
+        // NOTE: no custom shouldOverrideUrlLoading / manual reload-with-headers here anymore.
+        // Manually re-loading the URL mid-navigation was interfering with the Google login flow.
+        // Language is now handled once, globally, via attachBaseContext() above.
         webView.webViewClient = object : WebViewClient() {
             override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
                 super.onPageStarted(view, url, favicon)
                 progressBar.visibility = View.VISIBLE
             }
-        
-            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
-                val newUrl = request?.url?.toString() ?: return false
-                val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
-        
-                if (rtl && (newUrl.contains("docs.google.com/forms") || newUrl.contains("forms.gle"))) {
-                    val headers = mapOf("Accept-Language" to "fa-IR,fa;q=0.9")
-                    webView.loadUrl(newUrl, headers)
-                    return true
-                }
-                return false
-            }
-        
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 progressBar.visibility = View.GONE
                 swipeRefresh.isRefreshing = false
             }
-        
+
             override fun onReceivedError(
                 view: WebView?,
                 request: WebResourceRequest?,
@@ -122,12 +131,25 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        // If the RTL setting was changed in the Settings screen while this Activity
+        // was already alive, attachBaseContext() won't re-run on its own.
+        // Detect the mismatch and recreate the Activity once so the new locale applies.
+        if (localeNeedsRecreate()) {
+            recreate()
+            return
+        }
         loadFormIfNeeded()
     }
 
     override fun onPause() {
         super.onPause()
         CookieManager.getInstance().flush()
+    }
+
+    private fun localeNeedsRecreate(): Boolean {
+        val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
+        val currentLang = resources.configuration.locales[0].language
+        return (rtl && currentLang != "fa") || (!rtl && currentLang == "fa")
     }
 
     private fun loadFormIfNeeded() {
@@ -147,18 +169,14 @@ class MainActivity : AppCompatActivity() {
         hideEmptyState()
 
         if (autoRefresh || url != lastLoadedUrl) {
-            loadWithLanguageHeader(url)
+            val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
+            val finalUrl = if (rtl) {
+                if (url.contains("?")) "$url&hl=fa" else "$url?hl=fa"
+            } else {
+                url
+            }
+            webView.loadUrl(finalUrl)
             lastLoadedUrl = url
-        }
-    }
-
-    private fun loadWithLanguageHeader(url: String) {
-        val rtl = prefs.getBoolean(Constants.KEY_RTL_MODE, false)
-        if (rtl) {
-            val headers = mapOf("Accept-Language" to "fa-IR,fa;q=0.9")
-            webView.loadUrl(url, headers)
-        } else {
-            webView.loadUrl(url)
         }
     }
 
@@ -188,14 +206,7 @@ class MainActivity : AppCompatActivity() {
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         return when (item.itemId) {
             R.id.action_refresh -> {
-                if (isNetworkAvailable()) {
-                    val currentUrl = prefs.getString(Constants.KEY_FORM_URL, null)
-                    if (!currentUrl.isNullOrBlank()) {
-                        loadWithLanguageHeader(currentUrl)
-                    }
-                } else {
-                    loadFormIfNeeded()
-                }
+                if (isNetworkAvailable()) webView.reload() else loadFormIfNeeded()
                 true
             }
             R.id.action_open_browser -> {
