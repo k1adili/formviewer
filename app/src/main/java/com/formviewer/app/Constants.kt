@@ -6,4 +6,5 @@ object Constants {
     const val KEY_AUTO_REFRESH = "auto_refresh"
     const val KEY_THEME_MODE = "theme_mode" // "system", "light", "dark"
     const val KEY_RTL_MODE = "rtl_mode"
+    const val KEY_FORM_HISTORY = "form_history" // JSON array of past URLs, most recent first
 }
